@@ -87,13 +87,35 @@
                         </div>
 
                         <div class="text-center mb-3">
-                            <span class="badge bg-success status-badge">
-                                <i class="fas fa-circle"></i> Live Monitoring
+                            <span id="monitoringStatus" class="badge bg-danger status-badge">
+                                <i class="fas fa-circle"></i> Monitoring Offline
                             </span>
                         </div>
 
-                        <div class="text-center">
-                            <img id="videoFeed" src="{% url 'video_feed' %}" alt="Video Feed">
+                        <div class="text-center mb-3">
+                            <button id="startMonitoring" class="btn btn-success btn-lg">
+                                <i class="fas fa-play"></i> Start Monitoring
+                            </button>
+                            <button id="stopMonitoring" class="btn btn-danger btn-lg" style="display:none;">
+                                <i class="fas fa-stop"></i> Stop Monitoring
+                            </button>
+                        </div>
+
+                        <div class="text-center position-relative">
+                            <!-- Hidden video for capture -->
+                            <video id="video" autoplay playsinline style="display:none;"></video>
+                            <canvas id="canvas" style="display:none;"></canvas>
+                            
+                            <!-- Display for processed frames -->
+                            <img id="videoFeed" src="" alt="Video Feed" style="display:none; width: 100%; border-radius: 10px;">
+                            
+                            <!-- Initial Placeholder -->
+                            <div id="placeholder" class="bg-dark text-white d-flex align-items-center justify-content-center" style="height: 480px; border-radius: 10px;">
+                                <div>
+                                    <i class="fas fa-video-slash fa-4x mb-3"></i>
+                                    <p>Camera not started</p>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mt-4 text-center">
@@ -103,7 +125,7 @@
                                         <div class="card-body">
                                             <i class="fas fa-user-check fa-2x text-primary mb-2"></i>
                                             <h6>Face Recognition</h6>
-                                            <p class="text-muted mb-0">Active</p>
+                                            <p id="faceStatus" class="text-muted mb-0">Inactive</p>
                                         </div>
                                     </div>
                                 </div>
@@ -112,7 +134,7 @@
                                         <div class="card-body">
                                             <i class="fas fa-mobile-alt fa-2x text-warning mb-2"></i>
                                             <h6>Phone Detection</h6>
-                                            <p class="text-muted mb-0">YOLOv8</p>
+                                            <p id="phoneStatus" class="text-muted mb-0">Inactive</p>
                                         </div>
                                     </div>
                                 </div>
@@ -128,7 +150,7 @@
                             </div>
                         </div>
 
-                        <div class="alert alert-warning alert-custom mt-4">
+                        <div id="detectionInfo" class="alert alert-warning alert-custom mt-4">
                             <i class="fas fa-exclamation-triangle"></i>
                             <strong>Note:</strong> Make sure you have trained the model before starting detection.
                             <a href="{% url 'training_page' %}" class="alert-link">Go to Training</a>
@@ -140,5 +162,108 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const videoFeed = document.getElementById('videoFeed');
+        const placeholder = document.getElementById('placeholder');
+        const startBtn = document.getElementById('startMonitoring');
+        const stopBtn = document.getElementById('stopMonitoring');
+        const statusBadge = document.getElementById('monitoringStatus');
+        const faceStatus = document.getElementById('faceStatus');
+        const phoneStatus = document.getElementById('phoneStatus');
+        
+        let stream = null;
+        let isMonitoring = false;
+        let processInterval = null;
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                video.srcObject = stream;
+                
+                isMonitoring = true;
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                videoFeed.style.display = 'block';
+                placeholder.style.display = 'none';
+                statusBadge.className = 'badge bg-success status-badge';
+                statusBadge.innerHTML = '<i class="fas fa-circle"></i> Live Monitoring';
+                faceStatus.textContent = 'Active';
+                phoneStatus.textContent = 'Active';
+                
+                // Start processing loop
+                processInterval = setInterval(sendFrame, 500); // Process every 500ms
+            } catch (err) {
+                alert('Error accessing camera: ' + err.message);
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            stopMonitoring();
+        });
+
+        function stopMonitoring() {
+            isMonitoring = false;
+            clearInterval(processInterval);
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+            videoFeed.style.display = 'none';
+            placeholder.style.display = 'flex';
+            statusBadge.className = 'badge bg-danger status-badge';
+            statusBadge.innerHTML = '<i class="fas fa-circle"></i> Monitoring Offline';
+            faceStatus.textContent = 'Inactive';
+            phoneStatus.textContent = 'Inactive';
+        }
+
+        async function sendFrame() {
+            if (!isMonitoring) return;
+
+            // Draw current video frame to canvas
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+
+            // Convert to base64
+            const imageData = canvas.toDataURL('image/jpeg', 0.7);
+
+            try {
+                const response = await fetch('{% url "process_frame" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image: imageData
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update the display image with corrected frame from server
+                    videoFeed.src = data.image;
+                    
+                    if (data.phone_detected) {
+                        phoneStatus.className = 'text-danger fw-bold mb-0';
+                        phoneStatus.textContent = 'PHONE DETECTED!';
+                    } else {
+                        phoneStatus.className = 'text-muted mb-0';
+                        phoneStatus.textContent = 'Active';
+                    }
+                }
+            } catch (err) {
+                console.error('Error processing frame:', err);
+            }
+        }
+    script>
 </body>
 </html>

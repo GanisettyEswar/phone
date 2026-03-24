@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-rr9+5oc%@p^z%^z_wm5!=+ja_q4_ek58u1s4bm-mfejz08b#d!'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-rr9+5oc%@p^z%^z_wm5!=+ja_q4_ek58u1s4bm-mfejz08b#d!')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 
 # Application definition
@@ -130,8 +131,3 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Twilio SMS Configuration
-TWILIO_ACCOUNT_SID = 'your_account_sid_here'
-TWILIO_AUTH_TOKEN = 'your_auth_token_here'
-TWILIO_PHONE_NUMBER = 'your_twilio_phone_number_here'
-ADMIN_PHONE_NUMBER = '+916281361684'

@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import PhoneDetection
 from face_capture.models import Person
@@ -7,38 +7,20 @@ import cv2
 import pickle
 import os
 from django.conf import settings
-from ultralytics import YOLO
 import numpy as np
 from datetime import datetime
-#from twilio.rest import Client
 
-# Load YOLO model
+# Models loaded lazily to avoid memory crash on startup
 yolo_model = None
 face_recognizer = None
 label_map = None
 
-'''def send_sms_alert(person_name):
-    """Send SMS alert to admin when phone is detected"""
-    try:
-        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-
-        message_body = f"ALERT: Phone detected!\nUser: {person_name}\nTime: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-
-        message = client.messages.create(
-            body=message_body,
-            from_=settings.TWILIO_PHONE_NUMBER,
-            to=settings.ADMIN_PHONE_NUMBER
-        )
-        print(f"SMS sent successfully: {message.sid}")
-        return True
-    except Exception as e:
-        print(f"Error sending SMS: {e}")
-        return False'''
 
 def load_models():
     global yolo_model, face_recognizer, label_map
 
     if yolo_model is None:
+        from ultralytics import YOLO
         yolo_model = YOLO('yolov8n.pt')
 
     if face_recognizer is None:
@@ -59,29 +41,10 @@ def load_models():
             with open(label_path, 'rb') as f:
                 label_map = pickle.load(f)
 
+
 def detection_page(request):
     return render(request, 'detection/detection.html')
 
-def gen_frames():
-    load_models()
-    camera = cv2.VideoCapture(0)
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    last_save_time = {}
-
-    while True:
-        success, frame = camera.read()
-        if not success:
-            break
-        
-        # Use our helper to process each frame
-        frame, _ = process_and_annotate(frame, face_cascade, last_save_time)
-
-        ret, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-    camera.release()
 
 def process_and_annotate(frame, face_cascade, last_save_time):
     # Detect mobile phones using YOLO
@@ -165,6 +128,7 @@ def process_and_annotate(frame, face_cascade, last_save_time):
     
     return frame, phone_detected
 
+
 @csrf_exempt
 def process_frame(request):
     import base64
@@ -189,8 +153,7 @@ def process_frame(request):
             nparr = np.frombuffer(image_bytes, np.uint8)
             frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             
-            # Use a shared or persistent last_save_time if needed, but for now we can use a basic one
-            # Note: Production should use a cache (like Redis) for last_save_time
+            # Use a shared or persistent last_save_time if needed
             dummy_save_time = {} 
             
             # Process frame
@@ -210,7 +173,3 @@ def process_frame(request):
             return JsonResponse({'success': False, 'error': str(e)})
             
     return JsonResponse({'success': False, 'error': 'Invalid request'})
-
-def video_feed(request):
-    return StreamingHttpResponse(gen_frames(),
-                                content_type='multipart/x-mixed-replace; boundary=frame')

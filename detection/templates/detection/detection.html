@@ -183,6 +183,14 @@
                     video: { width: 640, height: 480 } 
                 });
                 video.srcObject = stream;
+
+                // Wait for the video to actually load before processing frames
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
                 
                 isMonitoring = true;
                 startBtn.style.display = 'none';
@@ -194,7 +202,7 @@
                 faceStatus.textContent = 'Active';
                 phoneStatus.textContent = 'Active';
                 
-                // Start processing loop
+                // Start processing loop after video is ready
                 processInterval = setInterval(sendFrame, 500); // Process every 500ms
             } catch (err) {
                 alert('Error accessing camera: ' + err.message);
@@ -224,8 +232,27 @@
             phoneStatus.textContent = 'Inactive';
         }
 
+        // Get CSRF token from cookies
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
         async function sendFrame() {
             if (!isMonitoring) return;
+
+            // Guard: skip if video hasn't loaded dimensions yet
+            if (video.videoWidth === 0 || video.videoHeight === 0) return;
 
             // Draw current video frame to canvas
             canvas.width = video.videoWidth;
@@ -236,10 +263,12 @@
             const imageData = canvas.toDataURL('image/jpeg', 0.7);
 
             try {
+                const csrftoken = getCookie('csrftoken');
                 const response = await fetch('{% url "process_frame" %}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken,
                     },
                     body: JSON.stringify({
                         image: imageData
@@ -249,7 +278,7 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Update the display image with corrected frame from server
+                    // Update the display image with processed frame from server
                     videoFeed.src = data.image;
                     
                     if (data.phone_detected) {
@@ -259,6 +288,8 @@
                         phoneStatus.className = 'text-muted mb-0';
                         phoneStatus.textContent = 'Active';
                     }
+                } else {
+                    console.error('Server error:', data.error);
                 }
             } catch (err) {
                 console.error('Error processing frame:', err);

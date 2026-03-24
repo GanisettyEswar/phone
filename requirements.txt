@@ -3,6 +3,5 @@ opencv-contrib-python-headless==4.10.0.84
 ultralytics==8.2.0
 Pillow==10.4.0
 numpy==1.26.4
-twilio==9.2.3
 gunicorn==21.2.0
 whitenoise==6.7.0

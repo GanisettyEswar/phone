@@ -3,11 +3,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import PhoneDetection
 from face_capture.models import Person
-import cv2
-import pickle
 import os
 from django.conf import settings
-import numpy as np
 from datetime import datetime
 
 # Models loaded lazily to avoid memory crash on startup
@@ -18,6 +15,8 @@ label_map = None
 
 def load_models():
     global yolo_model, face_recognizer, label_map
+    import cv2
+    import pickle
 
     if yolo_model is None:
         from ultralytics import YOLO
@@ -47,6 +46,7 @@ def detection_page(request):
 
 
 def process_and_annotate(frame, face_cascade, last_save_time):
+    import cv2
     # Detect mobile phones using YOLO
     results = yolo_model(frame, verbose=False)
     phone_detected = False
@@ -133,6 +133,8 @@ def process_and_annotate(frame, face_cascade, last_save_time):
 def process_frame(request):
     import base64
     import json
+    import cv2
+    import numpy as np
     
     if request.method == 'POST':
         try:

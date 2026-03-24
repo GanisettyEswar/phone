@@ -16,3 +16,6 @@ python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
 # Django commands
 python manage.py collectstatic --no-input
 python manage.py migrate
+
+# Make start script executable
+chmod +x render-start.sh

@@ -1,15 +1,9 @@
 from django.shortcuts import render, redirect
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Person, FaceImage
-import cv2
-import numpy as np
-import pickle
 import os
-from pathlib import Path
 from django.conf import settings
-import base64
-import json
 
 def index(request):
     persons = Person.objects.all()
@@ -20,6 +14,11 @@ def capture_page(request):
 
 @csrf_exempt
 def save_face(request):
+    import cv2
+    import numpy as np
+    import base64
+    import json
+
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -72,6 +71,10 @@ def training_page(request):
 
 @csrf_exempt
 def train_model(request):
+    import cv2
+    import numpy as np
+    import pickle
+
     if request.method == 'POST':
         try:
             # Using OpenCV LBPH Face Recognizer with improved parameters

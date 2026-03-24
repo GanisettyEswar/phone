@@ -7,9 +7,6 @@ from detection.models import PhoneDetection
 from face_capture.models import Person
 from django.conf import settings
 import os
-import cv2
-import numpy as np
-import pickle
 
 def admin_login(request):
     if request.method == 'POST':

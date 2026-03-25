@@ -1,6 +1,6 @@
 {
-  "name": "Face & Phone Detection System",
-  "short_name": "FaceSecure",
+  "name": "Phone Patrolling",
+  "short_name": "Patrolling",
   "description": "Modern AI surveillance system for face recognition and phone detection.",
   "start_url": "/",
   "display": "standalone",

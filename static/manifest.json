@@ -1,0 +1,21 @@
+{
+  "name": "Face & Phone Detection System",
+  "short_name": "FaceSecure",
+  "description": "Modern AI surveillance system for face recognition and phone detection.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

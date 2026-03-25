@@ -1,294 +1,271 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .navbar {
-            background: rgba(255,255,255,0.95) !important;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .card {
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            border: none;
-        }
-        .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px 15px 0 0 !important;
-            padding: 20px;
-        }
-        .detection-img {
-            max-width: 150px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: transform 0.3s;
-        }
-        .detection-img:hover {
-            transform: scale(1.05);
-        }
-        .btn-delete {
-            background: #dc3545;
-            border: none;
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-        }
-        .btn-delete:hover {
-            background: #c82333;
-            color: white;
-        }
-        .stats-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .stats-icon {
-            font-size: 2.5rem;
-            color: #667eea;
-        }
-    </style>
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container">
-            <a class="navbar-brand fw-bold">
-                <i class="fas fa-user-shield"></i> Admin Dashboard
-            </a>
-            <div class="ms-auto">
-                <a href="{% url 'admin_logout' %}" class="btn btn-danger">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </a>
+{% extends "face_capture/base.html" %}
+
+{% block title %}Control Center | FaceSecure AI{% endblock %}
+
+{% block extra_style %}
+<style>
+    .detection-img {
+        max-width: 100px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 1px solid var(--glass-border);
+    }
+    .detection-img:hover {
+        transform: scale(1.1);
+        border-color: var(--primary);
+        box-shadow: 0 0 15px var(--primary-glow);
+    }
+    .stat-card-inner {
+        padding: 1.5rem;
+        text-align: center;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        font-family: 'Outfit', sans-serif;
+        margin-bottom: 0.2rem;
+    }
+    .table-dark {
+        --bs-table-bg: transparent;
+        --bs-table-border-color: rgba(255, 255, 255, 0.05);
+    }
+    .modal-content {
+        background: var(--bg-dark);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px;
+    }
+    .modal-header {
+        border-bottom: 1px solid var(--glass-border);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade-in">
+    <div class="d-flex justify-content-between align-items-end mb-5">
+        <div>
+            <h1 class="display-6 mb-1">Administrative Terminal</h1>
+            <p class="text-muted mb-0">System performance and incident logs</p>
+        </div>
+        <a href="{% url 'admin_logout' %}" class="btn btn-outline-danger px-4 py-2" style="border-radius: 12px;">
+            <i class="fas fa-power-off me-2"></i> Terminate Session
+        </a>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="glass-card stat-card-inner">
+                <div class="text-primary mb-2"><i class="fas fa-bolt fa-2x"></i></div>
+                <div class="stat-value">{{ detections.count }}</div>
+                <div class="text-muted small text-uppercase fw-bold">Active Violations</div>
             </div>
         </div>
-    </nav>
-
-    <div class="container mt-4">
-        <div class="row mb-4">
-            <div class="col-md-4">
-                <div class="stats-card text-center">
-                    <i class="fas fa-exclamation-triangle stats-icon"></i>
-                    <h3 class="mt-2">{{ detections.count }}</h3>
-                    <p class="text-muted mb-0">Total Detections</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stats-card text-center">
-                    <i class="fas fa-users stats-icon"></i>
-                    <h3 class="mt-2">{{ detections|length }}</h3>
-                    <p class="text-muted mb-0">Incidents Logged</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stats-card text-center">
-                    <i class="fas fa-clock stats-icon"></i>
-                    <h3 class="mt-2">Live</h3>
-                    <p class="text-muted mb-0">Monitoring Status</p>
-                </div>
+        <div class="col-md-4">
+            <div class="glass-card stat-card-inner">
+                <div class="text-secondary mb-2"><i class="fas fa-users-viewfinder fa-2x"></i></div>
+                <div class="stat-value">{{ persons|length }}</div>
+                <div class="text-muted small text-uppercase fw-bold">Monitored Personnel</div>
             </div>
         </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h4 class="mb-0"><i class="fas fa-mobile-alt"></i> Mobile Phone Usage Detections</h4>
-            </div>
-            <div class="card-body">
-                {% if detections %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Person Name</th>
-                                <th>Timestamp</th>
-                                <th>Captured Image</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for detection in detections %}
-                            <tr id="detection-{{ detection.id }}">
-                                <td>
-                                    <i class="fas fa-user"></i>
-                                    <strong>
-                                        {% if detection.person %}
-                                            {{ detection.person.username }}
-                                        {% else %}
-                                            <span class="text-danger">Unknown User</span>
-                                        {% endif %}
-                                    </strong>
-                                </td>
-                                <td>
-                                    <i class="fas fa-calendar-alt"></i>
-                                    {{ detection.detected_at|date:"Y-m-d H:i:s" }}
-                                </td>
-                                <td>
-                                    <img src="/media/{{ detection.image }}"
-                                         class="detection-img"
-                                         alt="Detection Image"
-                                         data-bs-toggle="modal"
-                                         data-bs-target="#imageModal{{ detection.id }}">
-                                </td>
-                                <td>
-                                    <button class="btn btn-delete btn-sm" onclick="deleteDetection({{ detection.id }})">
-                                        <i class="fas fa-trash"></i> Delete
-                                    </button>
-                                </td>
-                            </tr>
-
-                            <!-- Image Modal -->
-                            <div class="modal fade" id="imageModal{{ detection.id }}" tabindex="-1">
-                                <div class="modal-dialog modal-lg">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">
-                                                {% if detection.person %}
-                                                    {{ detection.person.username }}
-                                                {% else %}
-                                                    Unknown User
-                                                {% endif %}
-                                                - {{ detection.detected_at|date:"Y-m-d H:i:s" }}
-                                            </h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body text-center">
-                                            <img src="/media/{{ detection.image }}" class="img-fluid" alt="Detection Image">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
-                    <h5>No Detections Yet</h5>
-                    <p class="text-muted">No mobile phone usage has been detected. The system is monitoring.</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="card mt-4">
-            <div class="card-header">
-                <h4 class="mb-0"><i class="fas fa-users"></i> Registered Users</h4>
-            </div>
-            <div class="card-body">
-                {% if persons %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Username</th>
-                                <th>Registered Date</th>
-                                <th>Training Status</th>
-                                <th>Images Count</th>
-                                <th>Detections</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for person in persons %}
-                            <tr id="user-{{ person.id }}">
-                                <td>
-                                    <i class="fas fa-user"></i>
-                                    <strong>{{ person.username }}</strong>
-                                </td>
-                                <td>{{ person.created_at|date:"Y-m-d H:i" }}</td>
-                                <td>
-                                    {% if person.is_trained %}
-                                    <span class="badge bg-success">Trained</span>
-                                    {% else %}
-                                    <span class="badge bg-warning">Not Trained</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ person.face_images.count }}</td>
-                                <td>{{ person.phone_detections.count }}</td>
-                                <td>
-                                    <button class="btn btn-delete btn-sm" onclick="deleteUser({{ person.id }}, '{{ person.username }}')">
-                                        <i class="fas fa-user-times"></i> Delete User
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No users registered yet.</p>
-                </div>
-                {% endif %}
+        <div class="col-md-4">
+            <div class="glass-card stat-card-inner">
+                <div class="text-success mb-2"><i class="fas fa-satellite-dish fa-2x"></i></div>
+                <div class="stat-value text-success">Live</div>
+                <div class="text-muted small text-uppercase fw-bold">Neural Engine Status</div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        async function deleteDetection(detectionId) {
-            if (!confirm('Are you sure you want to delete this detection?')) {
-                return;
-            }
+    <!-- Incidents Table -->
+    <div class="glass-card mb-5 overflow-hidden">
+        <div class="p-4 border-bottom border-white border-opacity-10 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-mobile-screen me-2 text-primary"></i>Incident Archives</h5>
+            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20 px-3 py-2">Restricted Access</span>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead class="bg-white bg-opacity-5">
+                    <tr>
+                        <th class="ps-4">Subject</th>
+                        <th>Timestamp</th>
+                        <th>Evidence</th>
+                        <th class="text-end pe-4">Protocol</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if detections %}
+                        {% for detection in detections %}
+                        <tr id="detection-{{ detection.id }}" class="border-white border-opacity-5">
+                            <td class="ps-4">
+                                <span class="fw-bold {% if not detection.person %}text-danger{% endif %}">
+                                    <i class="fas fa-user-circle me-2 opacity-50"></i>
+                                    {{ detection.person.username|default:"Unknown Entity" }}
+                                </span>
+                            </td>
+                            <td class="text-muted small">
+                                {{ detection.detected_at|date:"M d, Y" }} <br>
+                                <span class="text-white opacity-75">{{ detection.detected_at|date:"H:i:s" }}</span>
+                            </td>
+                            <td>
+                                <img src="/media/{{ detection.image }}" 
+                                     class="detection-img" 
+                                     alt="Incident Evidence"
+                                     data-bs-toggle="modal" 
+                                     data-bs-target="#imageModal{{ detection.id }}">
+                            </td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-outline-danger px-3" style="border-radius: 8px;" onclick="deleteDetection({{ detection.id }})">
+                                    <i class="fas fa-trash-alt me-1"></i> Purge
+                                </button>
+                            </td>
+                        </tr>
 
-            try {
-                const response = await fetch(`/dashboard/delete/${detectionId}/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
+                        <!-- Modal -->
+                        <div class="modal fade" id="imageModal{{ detection.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-centered modal-lg">
+                                <div class="modal-content shadow-2xl">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title text-white">
+                                            Evidence File #{{ detection.id }} | {{ detection.person.username|default:"Unknown" }}
+                                        </h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body p-0 text-center">
+                                        <img src="/media/{{ detection.image }}" class="img-fluid" style="border-radius: 0 0 24px 24px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5">
+                                <i class="fas fa-shield-check fa-3x text-success mb-3 opacity-25"></i>
+                                <h6 class="text-muted">No security breaches detected in the current cycle</h6>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-                const data = await response.json();
+    <!-- Registered Users Section -->
+    <div class="glass-card mb-5 overflow-hidden">
+        <div class="p-4 border-bottom border-white border-opacity-10">
+            <h5 class="mb-0"><i class="fas fa-database me-2 text-primary"></i>Identification Database</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead class="bg-white bg-opacity-5">
+                    <tr>
+                        <th class="ps-4">Identity</th>
+                        <th>Enrollment Date</th>
+                        <th>Neural Status</th>
+                        <th>Data Points</th>
+                        <th class="text-end pe-4">Records</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for person in persons %}
+                    <tr id="user-{{ person.id }}" class="border-white border-opacity-5">
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar me-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; border-radius: 10px;">
+                                    {{ person.username|slice:":1"|upper }}
+                                </div>
+                                <span class="fw-bold">{{ person.username }}</span>
+                            </div>
+                        </td>
+                        <td class="text-muted small">{{ person.created_at|date:"Y-m-d" }}</td>
+                        <td>
+                            {% if person.is_trained %}
+                            <span class="status-pill text-success py-1">Optimized</span>
+                            {% else %}
+                            <span class="status-pill text-warning py-1">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ person.face_images.count }} frames</td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-sm btn-link text-danger text-decoration-none" onclick="deleteUser({{ person.id }}, '{{ person.username }}')">
+                                <i class="fas fa-user-xmark me-1"></i> Revoke
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-                if (data.success) {
-                    document.getElementById(`detection-${detectionId}`).remove();
-                    alert('Detection deleted successfully!');
-                } else {
-                    alert('Error: ' + data.error);
+{% block extra_script %}
+<script>
+    async function deleteDetection(detectionId) {
+        if (!confirm('Permanent deletion of incident record #'+detectionId+'?')) return;
+
+        try {
+            const response = await fetch(`/dashboard/delete/${detectionId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
                 }
-            } catch (err) {
-                alert('Error deleting detection: ' + err.message);
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById(`detection-${detectionId}`).style.opacity = '0';
+                setTimeout(() => document.getElementById(`detection-${detectionId}`).remove(), 300);
+            } else {
+                alert('Purge Error: ' + data.error);
+            }
+        } catch (err) {
+            alert('Communication Failed: ' + err.message);
+        }
+    }
+
+    async function deleteUser(userId, username) {
+        if (!confirm(`REVOKE ACCESS: "${username}"?\n\nThis will purge all biometric frames and historical incidence data.`)) return;
+
+        try {
+            const response = await fetch(`/dashboard/delete-user/${userId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById(`user-${userId}`).style.opacity = '0';
+                setTimeout(() => location.reload(), 300);
+            } else {
+                alert('Database Fault: ' + data.error);
+            }
+        } catch (err) {
+            alert('Sync Failure: ' + err.message);
+        }
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
         }
-
-        async function deleteUser(userId, username) {
-            if (!confirm(`Are you sure you want to delete user "${username}"?\n\nThis will delete:\n- All face images\n- All detection records\n- User account\n\nThis action cannot be undone!`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/dashboard/delete-user/${userId}/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    document.getElementById(`user-${userId}`).remove();
-                    alert('User deleted successfully!');
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            } catch (err) {
-                alert('Error deleting user: ' + err.message);
-            }
-        }
-    </script>
-</body>
-</html>
+        return cookieValue;
+    }
+</script>
+{% endblock %}

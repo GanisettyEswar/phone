@@ -1,167 +1,160 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Detection</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .navbar {
-            background: rgba(255,255,255,0.95) !important;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .card {
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            border: none;
-        }
-        .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px 15px 0 0 !important;
-            padding: 20px;
-        }
-        #videoFeed {
-            width: 100%;
-            border-radius: 10px;
-            background: #000;
-        }
-        .status-badge {
-            font-size: 1.2rem;
-            padding: 10px 20px;
-        }
-        .alert-custom {
-            border-radius: 10px;
-            padding: 15px;
-        }
-    </style>
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="{% url 'index' %}">
-                <i class="fas fa-user-shield"></i> Face Recognition System
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'index' %}">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'capture_page' %}">Capture Faces</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'training_page' %}">Training</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="{% url 'detection_page' %}">Detection</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'admin_login' %}">Admin</a>
-                    </li>
-                </ul>
+{% extends "face_capture/base.html" %}
+
+{% block title %}Live Monitor | FaceSecure AI{% endblock %}
+
+{% block extra_style %}
+<style>
+    #videoFeed {
+        width: 100%;
+        border-radius: 20px;
+        background: #000;
+        box-shadow: 0 0 40px rgba(0,0,0,0.5);
+    }
+    .monitor-overlay {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        right: 20px;
+        display: flex;
+        justify-content: space-between;
+        pointer-events: none;
+    }
+    .scan-line {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: rgba(99, 102, 241, 0.5);
+        box-shadow: 0 0 10px var(--primary);
+        animation: scan 3s linear infinite;
+        z-index: 10;
+        display: none;
+    }
+    @keyframes scan {
+        0% { top: 0; }
+        100% { top: 100%; }
+    }
+    .stat-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        padding: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade-in">
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h1 class="display-6 mb-1">Live Monitoring</h1>
+            <p class="text-muted">Real-time neural identification & object analysis</p>
+        </div>
+        <div class="col-lg-4 text-lg-end d-flex align-items-center justify-content-lg-end">
+            <span id="monitoringStatus" class="status-pill text-danger border-danger border-opacity-25">
+                <i class="fas fa-circle me-2"></i> System Offline
+            </span>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Main Video Feed -->
+        <div class="col-lg-8">
+            <div class="glass-card p-2 overflow-hidden position-relative">
+                <div id="scanLine" class="scan-line"></div>
+                
+                <div class="monitor-overlay">
+                    <div class="status-pill bg-black bg-opacity-50 text-white">
+                        <i class="fas fa-expand me-2"></i> 640x480
+                    </div>
+                    <div id="phoneIndicator" class="status-pill bg-black bg-opacity-50 text-white">
+                        <i class="fas fa-mobile-alt me-2"></i> Signal Clear
+                    </div>
+                </div>
+
+                <!-- Hidden video for capture -->
+                <video id="video" autoplay playsinline style="display:none;"></video>
+                <canvas id="canvas" style="display:none;"></canvas>
+                
+                <!-- Display for processed frames -->
+                <img id="videoFeed" src="" alt="Video Feed" style="display:none;">
+                
+                <!-- Initial Placeholder -->
+                <div id="placeholder" class="d-flex align-items-center justify-content-center" style="height: 480px; border-radius: 18px; background: rgba(0,0,0,0.2);">
+                    <div class="text-center">
+                        <div class="icon-circle mx-auto bg-white bg-opacity-5 mb-3">
+                            <i class="fas fa-video-slash fa-2x text-muted"></i>
+                        </div>
+                        <h5 class="text-muted">Optic Sensor Offline</h5>
+                        <p class="text-muted small">Initialize system to begin monitoring</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex gap-3 justify-content-center">
+                <button id="startMonitoring" class="btn btn-premium px-5 py-3 shadow-lg">
+                    <i class="fas fa-power-off me-2"></i> Initialize System
+                </button>
+                <button id="stopMonitoring" class="btn btn-outline-danger px-5 py-3 border-2 fw-bold" style="display:none; border-radius: 14px;">
+                    <i class="fas fa-stop-circle me-2"></i> Terminate Session
+                </button>
             </div>
         </div>
-    </nav>
 
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-lg-10">
-                <div class="card">
-                    <div class="card-header">
-                        <h4 class="mb-0"><i class="fas fa-video"></i> Live Face & Phone Detection</h4>
-                    </div>
-                    <div class="card-body">
-                        <div class="alert alert-info alert-custom mb-4">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Detection Active:</strong> The system will automatically detect faces and mobile phone usage.
-                            When a person using a phone is detected, the image will be saved to the admin dashboard.
+        <!-- Sidebar Stats -->
+        <div class="col-lg-4">
+            <div class="glass-card p-4">
+                <h5 class="mb-4"><i class="fas fa-chart-bar me-2 text-primary"></i>Telemetry</h5>
+                
+                <div class="vstack gap-3">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted small">Neural Status</span>
+                            <span id="faceStatus" class="fw-bold text-muted">Inactive</span>
                         </div>
-
-                        <div class="text-center mb-3">
-                            <span id="monitoringStatus" class="badge bg-danger status-badge">
-                                <i class="fas fa-circle"></i> Monitoring Offline
-                            </span>
-                        </div>
-
-                        <div class="text-center mb-3">
-                            <button id="startMonitoring" class="btn btn-success btn-lg">
-                                <i class="fas fa-play"></i> Start Monitoring
-                            </button>
-                            <button id="stopMonitoring" class="btn btn-danger btn-lg" style="display:none;">
-                                <i class="fas fa-stop"></i> Stop Monitoring
-                            </button>
-                        </div>
-
-                        <div class="text-center position-relative">
-                            <!-- Hidden video for capture -->
-                            <video id="video" autoplay playsinline style="display:none;"></video>
-                            <canvas id="canvas" style="display:none;"></canvas>
-                            
-                            <!-- Display for processed frames -->
-                            <img id="videoFeed" src="" alt="Video Feed" style="display:none; width: 100%; border-radius: 10px;">
-                            
-                            <!-- Initial Placeholder -->
-                            <div id="placeholder" class="bg-dark text-white d-flex align-items-center justify-content-center" style="height: 480px; border-radius: 10px;">
-                                <div>
-                                    <i class="fas fa-video-slash fa-4x mb-3"></i>
-                                    <p>Camera not started</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 text-center">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <i class="fas fa-user-check fa-2x text-primary mb-2"></i>
-                                            <h6>Face Recognition</h6>
-                                            <p id="faceStatus" class="text-muted mb-0">Inactive</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <i class="fas fa-mobile-alt fa-2x text-warning mb-2"></i>
-                                            <h6>Phone Detection</h6>
-                                            <p id="phoneStatus" class="text-muted mb-0">Inactive</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <i class="fas fa-save fa-2x text-success mb-2"></i>
-                                            <h6>Auto Save</h6>
-                                            <p class="text-muted mb-0">Enabled</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="detectionInfo" class="alert alert-warning alert-custom mt-4">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <strong>Note:</strong> Make sure you have trained the model before starting detection.
-                            <a href="{% url 'training_page' %}" class="alert-link">Go to Training</a>
+                        <div class="progress mt-2" style="height: 4px; background: rgba(255,255,255,0.05);">
+                            <div class="progress-bar bg-primary" id="neuralProgress" style="width: 0%"></div>
                         </div>
                     </div>
+
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted small">Object Analysis</span>
+                            <span id="phoneStatus" class="fw-bold text-muted">Inactive</span>
+                        </div>
+                        <div class="progress mt-2" style="height: 4px; background: rgba(255,255,255,0.05);">
+                            <div class="progress-bar bg-warning" id="objectProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted small">Auto-Archive</span>
+                            <span class="fw-bold text-success font-monospace">ACTIVE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-3 rounded-4 bg-primary bg-opacity-10 border border-primary border-opacity-20">
+                    <p class="small mb-0 text-primary">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Encrypted frames are being analyzed and stored upon incident detection.
+                    </p>
+                </div>
+
+                <div class="mt-4 text-center">
+                    <a href="{% url 'training_page' %}" class="text-primary text-decoration-none small fw-600">
+                        Configure Neural Parameters <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
                 </div>
             </div>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_script %}
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
@@ -172,6 +165,10 @@
         const statusBadge = document.getElementById('monitoringStatus');
         const faceStatus = document.getElementById('faceStatus');
         const phoneStatus = document.getElementById('phoneStatus');
+        const scanLine = document.getElementById('scanLine');
+        const phoneIndicator = document.getElementById('phoneIndicator');
+        const neuralProgress = document.getElementById('neuralProgress');
+        const objectProgress = document.getElementById('objectProgress');
         
         let stream = null;
         let isMonitoring = false;
@@ -185,7 +182,6 @@
             }
 
             await sendFrame();
-            // Schedule next frame with a small delay to prevent browser lag
             setTimeout(loop, 200);
         }
 
@@ -194,14 +190,10 @@
             if (video.videoWidth === 0 || video.videoHeight === 0) return;
 
             isProcessing = true;
-            
-            // Draw current video frame to canvas
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-
-            // Convert to base64
-            const imageData = canvas.toDataURL('image/jpeg', 0.6); // Slightly lower quality for faster transmission
+            const imageData = canvas.toDataURL('image/jpeg', 0.6);
 
             try {
                 const csrftoken = getCookie('csrftoken');
@@ -211,78 +203,126 @@
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrftoken,
                     },
-                    body: JSON.stringify({
-                        image: imageData
-                    })
+                    body: JSON.stringify({ image: imageData })
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    // Update the display image with processed frame from server
                     videoFeed.src = data.image;
                     
                     if (data.phone_detected) {
-                        phoneStatus.className = 'text-danger fw-bold mb-0';
-                        phoneStatus.textContent = 'PHONE DETECTED!';
+                        phoneStatus.className = 'fw-bold text-danger';
+                        phoneStatus.textContent = 'ALERT: INCIDENT';
+                        phoneIndicator.className = 'status-pill bg-danger text-white';
+                        phoneIndicator.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> PHONE DETECTED';
+                        objectProgress.style.width = '100%';
                     } else {
-                        phoneStatus.className = 'text-muted mb-0';
-                        phoneStatus.textContent = 'Monitoring...';
+                        phoneStatus.className = 'fw-bold text-muted';
+                        phoneStatus.textContent = 'Analyzing...';
+                        phoneIndicator.className = 'status-pill bg-black bg-opacity-50 text-white';
+                        phoneIndicator.innerHTML = '<i class="fas fa-mobile-alt me-2"></i> Signal Clear';
+                        objectProgress.style.width = '40%';
                     }
                     
-                    // Reset status if it was an error before
-                    if (statusBadge.classList.contains('bg-warning')) {
-                        statusBadge.className = 'badge bg-success status-badge';
-                        statusBadge.innerHTML = '<i class="fas fa-circle"></i> Live Monitoring';
+                    if (statusBadge.classList.contains('text-warning')) {
+                        statusBadge.className = 'status-pill text-success border-success border-opacity-25';
+                        statusBadge.innerHTML = '<i class="fas fa-circle me-2"></i> Live Monitoring';
                     }
                 } else {
-                    console.error('Server error:', data.error);
-                    statusBadge.className = 'badge bg-warning status-badge';
-                    statusBadge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + data.error;
+                    statusBadge.className = 'status-pill text-warning border-warning border-opacity-25';
+                    statusBadge.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i> ' + data.error;
                 }
             } catch (err) {
-                console.error('Error processing frame:', err);
-                statusBadge.className = 'badge bg-warning status-badge';
-                statusBadge.innerHTML = '<i class="fas fa-wifi"></i> Connection Error';
+                statusBadge.className = 'status-pill text-warning border-warning border-opacity-25';
+                statusBadge.innerHTML = '<i class="fas fa-wifi me-2"></i> Connection Error';
             } finally {
                 isProcessing = false;
             }
         }
 
+        stopBtn.addEventListener('click', () => {
+            stopMonitoring();
+        });
+
+        function stopMonitoring() {
+            isMonitoring = false;
+            isProcessing = false;
+            scanLine.style.display = 'none';
+            neuralProgress.style.width = '0%';
+            objectProgress.style.width = '0%';
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+            videoFeed.style.display = 'none';
+            placeholder.style.display = 'flex';
+            statusBadge.className = 'status-pill text-danger border-danger border-opacity-25';
+            statusBadge.innerHTML = '<i class="fas fa-circle me-2"></i> System Offline';
+            faceStatus.textContent = 'Inactive';
+            phoneStatus.textContent = 'Inactive';
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
         startBtn.addEventListener('click', async () => {
             try {
-                statusBadge.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accessing Camera...';
+                statusBadge.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Handshaking...';
                 
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { width: 640, height: 480 } 
                 });
                 video.srcObject = stream;
 
-                await new Promise((resolve) => {
-                    video.onloadedmetadata = () => {
-                        video.play();
-                        resolve();
-                    };
-                });
+                if (video.readyState >= 2) {
+                    video.play();
+                } else {
+                    await new Promise((resolve) => {
+                        video.onloadedmetadata = () => {
+                            video.play();
+                            resolve();
+                        };
+                    });
+                }
                 
                 isMonitoring = true;
                 startBtn.style.display = 'none';
                 stopBtn.style.display = 'inline-block';
                 videoFeed.style.display = 'block';
                 placeholder.style.display = 'none';
-                statusBadge.className = 'badge bg-success status-badge';
-                statusBadge.innerHTML = '<i class="fas fa-circle"></i> Live Monitoring';
+                scanLine.style.display = 'block';
+                statusBadge.className = 'status-pill text-success border-success border-opacity-25';
+                statusBadge.innerHTML = '<i class="fas fa-circle me-2"></i> Live Monitoring';
                 faceStatus.textContent = 'Active';
-                phoneStatus.textContent = 'Monitoring...';
+                faceStatus.className = 'fw-bold text-success';
+                neuralProgress.style.width = '100%';
+                phoneStatus.textContent = 'Analyzing...';
                 
-                // Start processing loop
                 loop();
             } catch (err) {
-                alert('Error accessing camera: ' + err.message);
-                statusBadge.className = 'badge bg-danger status-badge';
-                statusBadge.innerHTML = '<i class="fas fa-circle"></i> Camera Error';
+                console.error('Camera error:', err);
+                statusBadge.className = 'status-pill text-danger border-danger border-opacity-25';
+                statusBadge.innerHTML = '<i class="fas fa-video-slash me-2"></i> Optic Fault';
+                placeholder.style.display = 'flex';
+                videoFeed.style.display = 'none';
             }
         });
     </script>
-</body>
-</html>
+{% endblock %}

@@ -20,7 +20,8 @@ def load_models():
 
     if yolo_model is None:
         from ultralytics import YOLO
-        yolo_model = YOLO('yolov8n.pt')
+        model_path = os.path.join(settings.BASE_DIR, 'yolov8n.pt')
+        yolo_model = YOLO(model_path)
 
     if face_recognizer is None:
         model_path = os.path.join(settings.MEDIA_ROOT, 'trained_models', 'face_recognizer.yml')
@@ -63,36 +64,36 @@ def process_and_annotate(frame, face_cascade, last_save_time):
                 cv2.putText(frame, 'Phone Detected', (x1, y1 - 10),
                           cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
 
-    # Face recognition and detection saving
-    if phone_detected:
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # Apply histogram equalization for better lighting normalization
-        gray = cv2.equalizeHist(gray)
+    # ALWAYS perform face recognition and detection
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Apply histogram equalization for better lighting normalization
+    gray = cv2.equalizeHist(gray)
 
-        # Improved face detection parameters
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    # Improved face detection parameters
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-        for (x, y, w, h) in faces:
-            face_roi = gray[y:y+h, x:x+w]
-            # Resize to standard size matching training
-            face_roi_resized = cv2.resize(face_roi, (200, 200))
-            name = "Unknown"
-            confidence_score = 0
+    for (x, y, w, h) in faces:
+        face_roi = gray[y:y+h, x:x+w]
+        # Resize to standard size matching training
+        face_roi_resized = cv2.resize(face_roi, (200, 200))
+        name = "Unknown"
+        confidence_score = 0
 
-            # Try face recognition if models are loaded
-            if face_recognizer and label_map:
-                try:
-                    label, confidence = face_recognizer.predict(face_roi_resized)
-                    confidence_score = confidence
-                    # Stricter threshold for better accuracy (lower is better match)
-                    if confidence < 70:  # More strict threshold
-                        name = label_map.get(label, "Unknown")
-                    else:
-                        name = "Unknown"
-                except:
+        # Try face recognition if models are loaded
+        if face_recognizer and label_map:
+            try:
+                label, confidence = face_recognizer.predict(face_roi_resized)
+                confidence_score = confidence
+                # Stricter threshold for better accuracy (lower is better match)
+                if confidence < 70:  # More strict threshold
+                    name = label_map.get(label, "Unknown")
+                else:
                     name = "Unknown"
+            except:
+                name = "Unknown"
 
-            # Save detection for both known and unknown users
+        # Save detection ONLY if phone is detected
+        if phone_detected:
             current_time = datetime.now()
             save_key = name  # Use only name, not position
 
@@ -120,11 +121,11 @@ def process_and_annotate(frame, face_cascade, last_save_time):
                 except Exception as e:
                     print(f"Error saving detection: {e}")
 
-            # Display confidence score for debugging
-            display_text = f"{name} ({confidence_score:.1f})" if confidence_score > 0 else name
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            cv2.putText(frame, display_text, (x, y - 10),
-                      cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+        # Display highlights for faces regardless of phone detection
+        display_text = f"{name} ({confidence_score:.1f})" if confidence_score > 0 else name
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        cv2.putText(frame, display_text, (x, y - 10),
+                  cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
     
     return frame, phone_detected
 

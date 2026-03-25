@@ -175,92 +175,33 @@
         
         let stream = null;
         let isMonitoring = false;
-        let processInterval = null;
+        let isProcessing = false;
 
-        startBtn.addEventListener('click', async () => {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 640, height: 480 } 
-                });
-                video.srcObject = stream;
-
-                // Wait for the video to actually load before processing frames
-                await new Promise((resolve) => {
-                    video.onloadedmetadata = () => {
-                        video.play();
-                        resolve();
-                    };
-                });
-                
-                isMonitoring = true;
-                startBtn.style.display = 'none';
-                stopBtn.style.display = 'inline-block';
-                videoFeed.style.display = 'block';
-                placeholder.style.display = 'none';
-                statusBadge.className = 'badge bg-success status-badge';
-                statusBadge.innerHTML = '<i class="fas fa-circle"></i> Live Monitoring';
-                faceStatus.textContent = 'Active';
-                phoneStatus.textContent = 'Active';
-                
-                // Start processing loop after video is ready
-                processInterval = setInterval(sendFrame, 500); // Process every 500ms
-            } catch (err) {
-                alert('Error accessing camera: ' + err.message);
+        async function loop() {
+            if (!isMonitoring) return;
+            if (isProcessing) {
+                setTimeout(loop, 100);
+                return;
             }
-        });
 
-        stopBtn.addEventListener('click', () => {
-            stopMonitoring();
-        });
-
-        function stopMonitoring() {
-            isMonitoring = false;
-            clearInterval(processInterval);
-            
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                video.srcObject = null;
-            }
-            
-            startBtn.style.display = 'inline-block';
-            stopBtn.style.display = 'none';
-            videoFeed.style.display = 'none';
-            placeholder.style.display = 'flex';
-            statusBadge.className = 'badge bg-danger status-badge';
-            statusBadge.innerHTML = '<i class="fas fa-circle"></i> Monitoring Offline';
-            faceStatus.textContent = 'Inactive';
-            phoneStatus.textContent = 'Inactive';
-        }
-
-        // Get CSRF token from cookies
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
+            await sendFrame();
+            // Schedule next frame with a small delay to prevent browser lag
+            setTimeout(loop, 200);
         }
 
         async function sendFrame() {
             if (!isMonitoring) return;
-
-            // Guard: skip if video hasn't loaded dimensions yet
             if (video.videoWidth === 0 || video.videoHeight === 0) return;
 
+            isProcessing = true;
+            
             // Draw current video frame to canvas
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
 
             // Convert to base64
-            const imageData = canvas.toDataURL('image/jpeg', 0.7);
+            const imageData = canvas.toDataURL('image/jpeg', 0.6); // Slightly lower quality for faster transmission
 
             try {
                 const csrftoken = getCookie('csrftoken');
@@ -286,15 +227,62 @@
                         phoneStatus.textContent = 'PHONE DETECTED!';
                     } else {
                         phoneStatus.className = 'text-muted mb-0';
-                        phoneStatus.textContent = 'Active';
+                        phoneStatus.textContent = 'Monitoring...';
+                    }
+                    
+                    // Reset status if it was an error before
+                    if (statusBadge.classList.contains('bg-warning')) {
+                        statusBadge.className = 'badge bg-success status-badge';
+                        statusBadge.innerHTML = '<i class="fas fa-circle"></i> Live Monitoring';
                     }
                 } else {
                     console.error('Server error:', data.error);
+                    statusBadge.className = 'badge bg-warning status-badge';
+                    statusBadge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + data.error;
                 }
             } catch (err) {
                 console.error('Error processing frame:', err);
+                statusBadge.className = 'badge bg-warning status-badge';
+                statusBadge.innerHTML = '<i class="fas fa-wifi"></i> Connection Error';
+            } finally {
+                isProcessing = false;
             }
         }
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                statusBadge.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Accessing Camera...';
+                
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                video.srcObject = stream;
+
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
+                
+                isMonitoring = true;
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                videoFeed.style.display = 'block';
+                placeholder.style.display = 'none';
+                statusBadge.className = 'badge bg-success status-badge';
+                statusBadge.innerHTML = '<i class="fas fa-circle"></i> Live Monitoring';
+                faceStatus.textContent = 'Active';
+                phoneStatus.textContent = 'Monitoring...';
+                
+                // Start processing loop
+                loop();
+            } catch (err) {
+                alert('Error accessing camera: ' + err.message);
+                statusBadge.className = 'badge bg-danger status-badge';
+                statusBadge.innerHTML = '<i class="fas fa-circle"></i> Camera Error';
+            }
+        });
     </script>
 </body>
 </html>
